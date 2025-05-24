@@ -1,0 +1,443 @@
+Visão Geral
+Este documento detalha o processo completo de instalação e configuração inicial do Windows Server 2022 que será usado como driver de domínio principal da infraestrutura.
+Requisitos do Sistema
+Requisitos Mínimos
+
+Processador: 1,4 GHz 64 bits
+RAM: 2 GB (4 GB recomendado)
+Armazenamento: 32 GB (60 GB recomendado)
+Rede: Adaptador Gigabit Ethernet
+
+Requisitos Recomendados para Produção
+
+Processador: Intel Xeon ou AMD EPYC (4+ núcleos)
+RAM: 16 GB (32 GB para ambientes grandes)
+Armazenamento: 500 GB SSD (RAID 1 recomendado)
+Rede: 2x Adaptadores Gigabit (redundância)
+
+Preparação da Instalação
+
+Baixar da ISO
+Acesse o Centro de Avaliação da Microsoft
+Baixe a versão Windows Server 2022 Standard
+Verifique o hash SHA-256 da ISO
+
+Criação da VM (VMware)
+Nome: DC01-WinServer2022
+SO: Microsoft Windows Server 2022
+RAM: 8 GB
+CPU: 4 vCores
+Disco: 100 GB (Thick Provisioned)
+Rede: Rede VM (será configurada posteriormente)
+Criação da VM (VirtualBox)
+Nome: DC01-WinServer2022
+Tipo: Microsoft Windows
+Versão: Windows 2022 (64 bits)
+RAM: 8192 MB
+CPU: 4 núcleos
+Disco: 100 GB VDI (Dinamicamente alocado)
+Processo de Instalação
+Etapa 1: Boot e Seleção de Idioma
+
+Inicialize a VM com a ISO do Windows Server 2022
+Pressione qualquer tecla quando solicitado
+Selecione:
+
+Idioma: Português (Brasil)
+Formato de hora: Português (Brasil)
+Teclado: Português (Brasil ABNT2)
+
+Clique em Avançar
+
+Etapa 2: Instalação
+
+Clique em Instalar agora
+Se solicitado, insira a chave do produto (ou selecione "Não tenho uma chave do produto")
+Selecione a edição:
+
+Padrão Windows Server 2022 (Experiência na Área de Trabalho)
+
+Aceite os termos de licença
+Escolha Personalizada: Instalar somente o Windows
+
+Etapa 3: Particionamento
+
+Selecione o disco onde instalar o Windows
+Para instalação básica, clique em Avançar
+Para configuração avançada:
+
+Crie divisão do sistema (100 MB)
+Crie divisão principal (restante do espaço)
+
+Aguarde a conclusão da instalação (15-30 minutos)
+
+Etapa 4: Configuração Inicial
+
+Defina a senha do administrador local:
+
+Senha: AdminP@ssw0rd2024!
+Confirmação: AdminP@ssw0rd2024!
+
+Pressione Ctrl+Alt+Delete para fazer login
+Faça login com a conta Administrador
+
+Configuração Pós-Instalação
+
+Configuração da Rede
+powershell# Renomear a interface da rede
+Rename-NetAdapter -Name "Ethernet" -NewName "LAN"
+Configurar IP estático
+Novo-NetIPAddress -IPAddress 192.168.10.10 -PrefixLength 24 -InterfaceIndex (Get-NetAdapter -Name "LAN").ifIndex -DefaultGateway 192.168.10.1
+
+Configurar DNS (apontando temporariamente para 8.8.8.8)
+Definir-DnsClientServerAddress -InterfaceIndex (Obter-NetAdapter -Nome "LAN").ifIndex -ServerAddresses 8.8.8.8,8.8.4.4
+
+Testar conectividade
+Test-NetConnection -ComputerName "8.8.8.8" -Port 53
+2. Renomear o Servidor
+powershell# Renomear o computador
+Rename-Computer -NewName "DC01" -RestartIfRequired
+3. Configuração do Windows Update
+powershell# Instalar módulo PSWindowsUpdate
+Install-PackageProvider -Name NuGet -Force
+Install-Module -Name PSWindowsUpdate -Force
+
+Baixar e instalar atualizações
+Get-WindowsUpdate
+Install-WindowsUpdate -AcceptAll -AutoReboot
+4. Configuração de Segurança Básica
+powershell# Habilitar Windows Defender
+Set-MpPreference -DisableRealtimeMonitoring $false
+
+Configurar política de senha
+secedit /exportar /cfg c:\temp\secpol.cfg
+
+Editar arquivo e aplicar:
+Comprimento mínimo da senha = 12
+Complexidade da Senha = 1
+MaximumPasswordAge = 90
+secedit /configure /db c:\temp\secedit.sdb /cfg c:\temp\secpol.cfg
+
+Habilitar log de auditoria
+auditpol /set /category:"Logon/Logoff" /success:enable /failure:enable
+auditpol /set /category:"Account Management" /success:enable /failure:enable
+5. Configuração do Firewall
+powershell# Verificar status do firewall
+Get-NetFirewallProfile
+
+Configurar regras básicas para o Active Directory (será usado posteriormente)
+Nova-Regra-NetFirewall -NomeDeExibição "Active Directory-LDAP" -Direção de entrada -Protocolo TCP -PortaLocal 389 -Ação Permitir
+Nova-Regra-NetFirewall -NomeDeExibição "Active Directory-LDAPS" -Direção de entrada -Protocolo TCP -PortaLocal 636 -Ação Permitir
+Nova-Regra-NetFirewall -NomeDeExibição "DNS" -Direção de entrada -Protocolo TCP -PortaLocal 53 -Ação Permitir
+Nova-Regra-NetFirewall -NomeDeExibição "DNS-UDP" -Direção de entrada -Protocolo UDP -PortaLocal 53 -Ação Permitir
+Nova-Regra-NetFirewall -NomeDeExibição "Kerberos" -Direção de entrada -Protocolo TCP -PortaLocal 88 -Ação Permitir
+Nova-Regra-NetFirewall -NomeDeExibição "Kerberos-UDP" -Direção de entrada -Protocolo UDP -PortaLocal 88 -Ação Permitir
+
+Instalação de funções e recursos
+usando Server Manager (GUI)
+
+Abra o Gerenciador de Servidores
+Clique em Adicionar funções e recursos
+Selecione Instalação baseada em funções ou recursos
+Selecione o servidor local
+Selecione as funções:
+
+
+Servidor DNS dos Serviços de Domínio do Active Directory
+Servidor DHCP
+
+Adicione recursos necessários quando solicitado
+Confirme e instale
+
+Usando o PowerShell
+PowerShell# Instalar funções do servidor
+Install-WindowsFeature -Name AD-Domain-Services -IncludeManagementTools
+Install-WindowsFeature -Name DNS -IncludeManagementTools
+Install-WindowsFeature -Name DHCP -IncludeManagementTools
+Install-WindowsFeature -Name GPMC -IncludeManagementTools
+Install-WindowsFeature -Name RSAT-AD-Tools -IncludeAllSubFeature
+
+Verificar instalação
+Get-WindowsFeature | Where-Object {$_.InstallState -eq "Instalado"}
+
+Configuração do VMware Tools / VirtualBox Additions
+VMware Tools
+
+No VMware, vá em VM → Instalar VMware Tools
+Monte o CD virtual
+Execute o instalador
+Reinicie quando solicitado
+
+Adicionais de convidado do VirtualBox
+
+No VirtualBox, vá em Dispositivos → Inserir imagem do CD de adições de convidados
+Execute o instalador do CD virtual
+Reinicie quando solicitado
+
+Verificação da Instalação
+
+Informações do Sistema
+powershell# Verifique a versão do Windows
+Get-ComputerInfo | Selecionar objeto WindowsProductName, WindowsVersion, WindowsBuildLabEx
+Verifique a configuração da rede
+Obter configuração de IP de rede
+
+Verifique as funções instaladas
+Get-WindowsFeature | Where-Object {$_.InstallState -eq "Instalado"}
+
+Verificar serviços críticos
+Obter serviço | Onde objeto {$ .Status -eq "Em execução" -e $ .Name -like " DNS "}
+Obter serviço | Onde objeto {$ .Status -eq "Em execução" -e $ .Name -like " DHCP "}
+2. Teste de conectividade
+do PowerShell# Testar conectividade externa
+Test-NetConnection -ComputerName "google.com" -Porta 80
+
+Testar resolução DNS
+Resolve-DnsName -Nome "microsoft.com"
+
+Verificar ping para gateway
+Teste-NetConnection -NomeDoComputador "192.168.10.1"
+
+Endurecimento Inicial de Segurança
+
+Desabilitar Serviços Desnecessários
+powershell# Lista de serviços para desabilitar (ajustar conforme necessário)
+$servicesToDisable = @(
+"Fax",
+"Browser",
+"Telephony",
+"WebClient",
+"RemoteRegistry",
+"Themes",
+"TabletInputService"
+)
+foreach ($service in $servicesToDisable) {
+Set-Service -Name $service -StartupType Disabled -ErrorAction SilentlyContinue
+Stop-Service -Name
+$service -Force -ErrorAction SilentlyContinue Write-Host "O serviço $service foi desativado" -ForegroundColor Green
+}
+2. Configurar Logs de Auditoria do
+PowerShell# Aumentar o tamanho dos logs
+wevtutil sl Security /ms:1024000000
+wevtutil sl System /ms:512000000
+wevtutil sl Application /ms:512000000
+
+Configurar auditorias avançadas
+auditpol /set /subcategoria:"Validação de Credenciais" /sucesso:habilitar /falha:habilitar
+auditpol /set /subcategoria:"Gerenciamento de Contas de Computador" /sucesso:habilitar /falha:habilitar
+auditpol /set /subcategoria:"Gerenciamento de Contas de Usuário" /sucesso:habilitar /falha:habilitar
+auditpol /set /subcategoria:"Gerenciamento de Grupos de Segurança" /sucesso:habilitar /falha:habilitar
+auditpol /set /subcategoria:"Gerenciamento de Grupos de Distribuição" /sucesso:habilitar /falha:habilitar
+
+Verifique as configurações de auditórios
+auditpol /get /category:*
+3. Configurações de Registro para Segurança
+powershell# Desabilitar enumeração SID anônima
+New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa" -Name "RestrictAnonymousSAM" -Value 1 -PropertyType DWORD -Force
+
+Desativar enumeração de compartilhamento anônimo
+New-ItemProperty - Caminho "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa" - Nome "RestrictAnonymous" - Valor 1 - Tipo de Propriedade DWORD - Força
+
+Habilitar assinatura SMB
+New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters" -Name "RequireSecuritySignature" -Value 1 -PropertyType DWORD -Force
+New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters" -Name "RequireSecuritySignature" -Value 1 -PropertyType DWORD -Force
+
+Configurar limite de tempo de bloqueio de tela
+New-ItemProperty - Caminho "HKLM:\SOFTWARE\Microsoft\Windows\VersãoAtual\Políticas\Sistema" - Nome "InactivityTimeoutSecs" - Valor 900 - TipoDePropriedade DWORD - Força
+
+Configurar banner de login
+New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" -Name "LegalNoticeCaption" -Value "ACESSO AUTORIZADO APENAS" -PropertyType String -Force
+New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" -Name "LegalNoticeText" -Valor "Este sistema é para uso autorizado apenas. O acesso não autorizado é proibido e pode resultar em processos legais." -PropertyType String -Force
+4. Configuração de Políticas de Senha Avançada
+powershell# Exportar configuração atual de segurança
+secedit /export /cfg C:\temp\secedit.cfg
+
+Criar arquivo de configuração personalizado
+$secConfig = @"
+[Unicode]
+Unicode=yes
+[Versão]
+signature=" $CHICAGO$"
+Revisão=1
+[Acesso ao sistema]
+MinimumPasswordAge = 1
+MaximumPasswordAge = 90
+MinimumPasswordLength = 14
+PasswordComplexity = 1
+PasswordHistorySize = 12
+LockoutBadCount = 5
+ResetLockoutCount = 30
+LockoutDuration = 30
+RequireLogonToChangePassword = 0
+ForceLogoffWhenHourExpire = 0
+NewAdministratorName = "LocalAdmin"
+NewGuestName = "Visitante"
+ClearTextPassword = 0
+LSAAnonymousNameLookup = 0
+EnableAdminAccount = 1
+EnableGuestAccount = 0
+"@
+
+Salvar configuração
+$secConfig | Out-File -FilePath "C:\temp\security_policy.cfg" - Codificação UTF8
+
+Aplicar configuração
+secedit /configure /db C:\temp\secedit.sdb /cfg C:\temp\security_policy.cfg /areas POLÍTICA DE SEGURANÇA
+
+Write-Host "Políticas de segurança aplicadas com sucesso!" -ForegroundColor Green
+5. Configuração de Backup e Recuperação
+powershell# Habilitar Pontos de Restauração
+Enable-ComputerRestore -Drive "C:"
+
+Criar ponto de restauração inicial
+Checkpoint-Computer -Description "Configuração Inicial Completa" -RestorePointType "MODIFY_SETTINGS"
+
+Configurar Backup do Windows (opcional)
+Instalar-WindowsFeature -Nome Windows-Server-Backup -IncludeManagementTools
+Configuração de NTP
+powershell# Configurar servidor NTP
+w32tm /config /manualpeerlist:"pool.ntp.org,0x8" /syncfromflags:MANUAL
+w32tm /config /reliable:yes
+w32tm /config /update
+Reiniciar serviço de tempo
+Reiniciar serviço w32time
+
+Verificar configuração
+w32tm /query /status
+w32tm /query /peers
+Monitoramento e Manutenção
+
+Script de Monitoramento Básico
+powershell# Criar script de monitoramento
+$monitoringScript = @"
+Monitor do Sistema Windows Server 2022
+Write-Host "=== RELATÓRIO DE STATUS DO SERVIDOR ===" -ForegroundColor Yellow
+Write-Host "Data/Hora: `$(Get-Date)" -ForegroundColor Cyan
+
+Status dos serviços críticos
+Write-Host " n--- SERVIÇOS CRÍTICOS ---" -ForegroundColor Green $criticalServices = @("DNS", "DHCP", "Netlogon", "ADWS", "KDC", "W32Time")
+foreach ( $service in $criticalServices) {
+try {
+$svc = Get-Service -Name "*$service*" -ErrorAction SilentlyContinue | Select-Object -First 1
+if ( $svc) { $status = if ( $svc.Status -eq "Running") { "✓" } else { "✗" } Write-Host "$status $($svc.Name): $($svc.Status)" -ForegroundColor ( $svc.Status -eq "Running" ? "Green" : "Red") } } catch { Write-Host "✗ $service: Não encontrado" -ForegroundColor Red
+}
+}
+
+Status do sistema
+Write-Host " n--- STATUS DO SISTEMA ---" -ForegroundColor Green $cpu = Get-WmiObject -Class win32_processor | Measure-Object -Property LoadPercentage -Average
+$memory = Get-WmiObject -Class win32_operatingsystem $disk = Get-WmiObject -Class win32_logicaldisk -Filter "DeviceID='C:'"
+
+Write-Host "CPU: $([math]::Round($cpu.Average, 2))%" -ForegroundColor Ciano
+Write-Host "Memória: $([math]::Round((($memory.TotalVisibleMemorySize - $memory.FreePhysicalMemory) / $memory.TotalVisibleMemorySize) * 100, 2))%" -ForegroundColor Ciano
+Write-Host "Disco C:: $([math]::Round((($disk.Size - $disk.FreeSpace) / $disk.Size) * 100, 2))%" -ForegroundColor Ciano
+
+Registros de eventos recentes
+Write-Host " n--- EVENTOS CRÍTICOS (últimas 24h) ---" -ForegroundColor Green $errorEvents = Get-EventLog -LogName System -EntryType Error -After (Get-Date).AddDays(-1) | Select-Object -First 5
+if ( $errorEvents) { $errorEvents | ForEach-Object { Write-Host "✗ $($ .TimeGenerated): $($ .Message.Substring(0, [Math]::Min(100, `$_.Message.Length)))..." -ForegroundColor Red }
+} else {
+Write-Host "✓ Nenhum erro crítico encontrado" -ForegroundColor Green
+}
+
+Write-Host "`n=== FIM DO RELATÓRIO ===" -ForegroundColor Yellow
+"@
+
+Salvar roteiro de monitoramento
+$monitoringScript | Out-File -FilePath "C:\Scripts\Monitor-Server.ps1" - Codificação UTF8
+
+Criar agenda tarefa para execução diária
+New-Item -Path "C:\Scripts" -ItemType Directory -Force
+2. Script de Manutenção Automatizado
+powershell# Script de manutenção semanal
+$maintenanceScript = @"
+
+Manutenção Automatizada Windows Server 2022
+Write-Host "Iniciando manutenção automática..." -ForegroundColor Yellow
+
+Limpeza de toras antigas (manter 90 dias)
+Obter-EventLog -Lista | ParaCada-Objeto {
+tentar {
+Obter-EventLog -NomeDoLog $_.Log -After (Get-Date).AddDays(-90) | Clear-EventLog Write-Host "Log $( $_.Log) limpo" -ForegroundColor Green } catch { Write-Host "Erro ao limpar log $(`$_.Log)" -CorDoPrimeiroPlano Vermelho
+}
+}
+
+Limpeza de arquivos temporários
+Remover-Item -Caminho "C:\Windows\Temp*" -Recurse -Force -ErrorAction SilentlyContinue
+Remover-Item -Caminho "C:\Usuários*\AppData\Local\Temp*" -Recurse -Force -ErrorAction SilentlyContinue
+
+Verificação de integridade do sistema
+sfc /scannow
+
+Desfragmentação (apenas para HDD)
+$diskType = Get-PhysicalDisk | Where-Object {$_.DeviceID -eq 0}
+if (`$diskType.MediaType -ne "SSD") {
+Otimizar-Volume -Letra-da-unidade C -Desfragmentar
+}
+
+Write-Host "Manutenção concluída!" -ForegroundColor Verde
+"@
+
+$maintenanceScript | Out-File -FilePath "C:\Scripts\Maintenance.ps1" -Codificação UTF8
+Checklist
+Instalação Final Completa
+
+Windows Server 2022 instalado com interface gráfica
+Servidor renomeado para DC01
+IP estático configurado (192.168.10.10)
+DNS temporariamente configurado
+Atualizações do Windows aplicadas
+
+Funções e Recursos
+
+Serviços de Domínio Active Directory instalados
+Servidor DNS instalado
+Servidor DHCP instalado
+Ferramentas de administração instaladas
+
+Segurança
+
+Políticas de senha definidas
+Firewall configurado com regras básicas
+Auditoria habilitada
+Serviços desnecessários desabilitados
+Configurações de registro de segurança aplicadas
+
+Monitoramento
+
+Scripts de monitoramento criados
+Ponto de restauração inicial criado
+NTP configurado
+Logs de sistema configurado
+
+Próximos Passos
+Após completar esta instalação e configuração inicial, os próximos passos incluem:
+
+Promoção a Controlador de Domínio
+
+Configuração do Active Directory Domain Services
+Criação da floresta e domínio
+
+Configuração avançada de DNS
+
+Zonas DNS internas
+Configuração de roteadores
+
+Configuração do DHCP
+
+Escopo de IPs
+Opções de DHCP (DNS, Gateway)
+
+Políticas de Grupo
+
+GPOs de segurança
+GPOs de configuração de usuários
+
+Backup e Recuperação
+
+Estratégia de backup do Active Directory
+Testes de recuperação
+
+Suporte e Documentação
+
+Documentação da Microsoft: https://docs.microsoft.com/windows-server/
+TechNet: https://technet.microsoft.com/
+Galeria do PowerShell: https://www.powershellgallery.com/
