@@ -147,9 +147,7 @@ Documentação oficial do pfSense
 Documentação do Kali Linux
 Manual do Usuário do VirtualBox
 
-📝 Notas de Desenvolvimento
-Última atualização
-
-Dados : [Dados atuais]
-Versão : 1.0
-Status : Em desenvolvimento/Concluído
+Membros do Grupo 
+Pedro Morais
+Guilhermw Edmar
+Hugo dos Anjos
