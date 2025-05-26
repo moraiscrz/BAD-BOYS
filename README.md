@@ -147,7 +147,7 @@ Documentação oficial do pfSense
 Documentação do Kali Linux
 Manual do Usuário do VirtualBox
 
- membros :
+Membros:
 Pedro Morais
 Guilhermw Edmar
 Hugo dos Anjos
