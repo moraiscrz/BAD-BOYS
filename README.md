@@ -41,22 +41,14 @@ Virtualizador instalado (VirtualBox ou VMware)
 - 8 GB de RAM (mínimo recomendado)
 - 100 GB de espaço em disco
 
-/
-├── windows-server/
-│ └── instalacao.md
-├── debian/
-│ └── instalacao.md
-├── kali/
-│ └── instalacao.md
-├── wazuh/
-│ └── instalacao.md
-├── pfsense/
-│ └── instalacao.md
-├── ansible/
-│ └── README.md
-├── active-directory/
-│ └── instalacao.md
 
-yaml
-Copiar
-Editar
+---
+
+## 🤖 Uso de Inteligência Artificial (IA)
+
+Durante o desenvolvimento do projeto, utilizamos ferramentas de Inteligência Artificial como **ChatGPT** para:
+
+- Gerar playbooks do Ansible com boas práticas de automação;
+- Escrever descrições técnicas e instruções de instalação em Markdown;
+- Criar prompts para configurar serviços como DNS, DHCP e Active Directory;
+- Corrigir comandos e sugestões de estrutura de repositório.
