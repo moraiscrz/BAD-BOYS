@@ -30,14 +30,14 @@ Este repositório documenta a instalação e configuração de uma infraestrutur
 🔧 Requisitos Gerais
 Virtualizador instalado (VirtualBox ou VMware)
 
--ISOs dos sistemas operacionais:
- -Windows Server
--Debian
--Kali Linux
--Pfsense
--Conta no GitHub
--Git instalado
--Acesso à internet
--8 GB de RAM (mínimo recomendado)
--100 GB de espaço em disco
+- ISOs dos sistemas operacionais:
+- Windows Server
+- Debian
+- Kali Linux
+- Pfsense
+- Conta no GitHub
+- Git instalado
+- Acesso à internet
+- 8 GB de RAM (mínimo recomendado)
+- 100 GB de espaço em disco
 
