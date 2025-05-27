@@ -27,5 +27,3 @@ Este repositório documenta a instalação e configuração de uma infraestrutur
 
 ---
 
-## ⚙️ Estrutura do Repositório
-
